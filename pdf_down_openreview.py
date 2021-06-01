@@ -82,7 +82,7 @@ def download_iclr19(client, outdir='./rl/', get_pdfs=False):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        '-o', '--outdir', default='./', help='directory where data should be saved')
+        '-o', '--outdir', default='C:\Users\hexu0003\Desktop', help='directory where data should be saved')
     parser.add_argument(
         '--get_pdfs', default=False, action='store_true', help='if included, download pdfs')
     parser.add_argument('--baseurl', default='https://api.openreview.net')
@@ -95,18 +95,29 @@ if __name__ == '__main__':
 
     client = openreview.Client(
         baseurl=args.baseurl,
-        username='',
-        password='')
+        username='hexu0003@e.ntu.edu.sg',
+        password='Hexu1995')
 
     # download_iclr19(client, outdir, get_pdfs=True) #args.get_pdfs)
     
     print('getting metadata...')
     # get all ICLR '19 submissions, reviews, and meta reviews, and organize them by forum ID
     # (a unique identifier for each paper; as in "discussion forum").
-    submissions = openreview.tools.iterget_notes(
-        client, invitation='ICLR.cc/2021/Conference/-/Blind_Submission')
-    submissions_by_forum = {n.forum: n for n in submissions}
-
+    # submissions = openreview.tools.iterget_notes(
+    #     client, invitation='ICLR.cc/2021/Conference/-/Blind_Submission')
+    # submissions_by_forum = {n.forum: n for n in submissions}
+    
+    blind_notes = {note.id: note for note in openreview.tools.iterget_notes(client, invitation = 'ICLR.cc/2021/Conference/-/Blind_Submission', details='original')}
+    # To download accpeted papers. Worked in iclr21.
+    accepted_submissions = {}
+    for note_id in blind_notes:
+        note = blind_notes[note_id]
+        try:
+            note.content['venue']
+            accepted_submissions[note_id] = note
+        except:
+            pass
+   submissions_by_forum = accepted_submissions
     # Build a list of metadata.
     # For every paper (forum), get the review ratings, the decision, and the paper's content.
     metadata = []
@@ -125,13 +136,19 @@ if __name__ == '__main__':
 
     # if requested, download pdfs to a subdirectory.
     rstr = r"[\/\\\:\*\?\"\<\>\|]"
+    filter_list = ['reinforcement', 'Reinforcement','Policy','policy', 'Actor', 'critic', 'actor', 'Critic']
     pdf_outdir = os.path.join(outdir, 'iclr21_pdfs')
     if not os.path.exists(pdf_outdir) :
         os.makedirs(pdf_outdir)
     for forum_metadata in tqdm(metadata, desc='getting pdfs'):
         title = re.sub(rstr, "", str(forum_metadata['submission_content']['title']))
         title.replace('\n', '')
-        if 'reinforcement' in title or 'Reinforcement' in title:
+        down = False
+        for f in filter_list:
+            if f in title:
+                down = True
+                break
+        if down:
             pdf_binary = client.get_pdf(forum_metadata['forum'])
             pdf_outfile = os.path.join(pdf_outdir, '{}.pdf'.format(title))
             with open(pdf_outfile, 'wb') as file_handle:
